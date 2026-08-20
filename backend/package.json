@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "start:cluster": "node dist/cluster.js",
     "db:migrate": "node -r ts-node/register src/db/migrate.ts",
-    "db:seed": "ts-node-dev --transpile-only src/db/seed.ts"
+    "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
+    "setup": "node dist/db/migrate.js ; node dist/db/seed.js ; echo done"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

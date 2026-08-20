@@ -1,13 +1,8 @@
-/**
- * Cluster mode — forks one worker per CPU core.
- * Use in production for maximum throughput on multi-core servers.
- * Start with: npm run start:cluster
- */
 import cluster from 'cluster';
 import os from 'os';
 import { config } from './config';
 
-const numCPUs = os.cpus().length;
+const numCPUs = Math.min(os.cpus().length, 4); // cap at 4 on free tier
 
 if (cluster.isPrimary) {
   console.log(`[cluster] Primary PID ${process.pid} — forking ${numCPUs} workers`);
@@ -18,7 +13,7 @@ if (cluster.isPrimary) {
 
   cluster.on('exit', (worker, code, signal) => {
     console.warn(`[cluster] Worker ${worker.process.pid} died (${signal ?? code}) — restarting`);
-    cluster.fork(); // auto-restart dead workers
+    cluster.fork();
   });
 
   cluster.on('online', (worker) => {
@@ -26,7 +21,7 @@ if (cluster.isPrimary) {
   });
 
 } else {
-  // Each worker runs the Express app
-  import('./server');
+  // Each worker runs server.ts which handles migration + seed + Express
+  require('./server');
   console.log(`[cluster] Worker ${process.pid} started on port ${config.port}`);
 }

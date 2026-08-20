@@ -1,14 +1,13 @@
 /**
  * Database migration — creates all tables if they don't exist.
- * Run with: npm run db:migrate
+ * Can be run standalone: node dist/db/migrate.js
+ * Or imported as a module: await runMigrations()
  */
 import { pool } from './pool';
 
 const SQL = `
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ─── Users ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email        TEXT UNIQUE NOT NULL,
@@ -19,7 +18,6 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ─── Travel Twin ──────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS travel_twins (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -31,7 +29,6 @@ CREATE TABLE IF NOT EXISTS travel_twins (
   updated_at             TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ─── Trips ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS trips (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -51,7 +48,6 @@ CREATE TABLE IF NOT EXISTS trips (
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON trips(user_id);
 CREATE INDEX IF NOT EXISTS idx_trips_status  ON trips(status);
 
--- ─── Trip Travelers ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS trip_travelers (
   id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id  UUID REFERENCES trips(id) ON DELETE CASCADE,
@@ -59,7 +55,6 @@ CREATE TABLE IF NOT EXISTS trip_travelers (
   UNIQUE(trip_id, user_id)
 );
 
--- ─── Activities ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS activities (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id              UUID REFERENCES trips(id) ON DELETE CASCADE,
@@ -88,11 +83,9 @@ CREATE TABLE IF NOT EXISTS activities (
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_activities_trip_id   ON activities(trip_id);
-CREATE INDEX IF NOT EXISTS idx_activities_date       ON activities(activity_date);
-CREATE INDEX IF NOT EXISTS idx_activities_type       ON activities(type);
+CREATE INDEX IF NOT EXISTS idx_activities_trip_id ON activities(trip_id);
+CREATE INDEX IF NOT EXISTS idx_activities_date    ON activities(activity_date);
 
--- ─── Behavior Events ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS behavior_events (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -104,10 +97,8 @@ CREATE TABLE IF NOT EXISTS behavior_events (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_behavior_user_id  ON behavior_events(user_id);
-CREATE INDEX IF NOT EXISTS idx_behavior_trip_id  ON behavior_events(trip_id);
+CREATE INDEX IF NOT EXISTS idx_behavior_user_id ON behavior_events(user_id);
 
--- ─── Travel Memories ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS travel_memories (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id            UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -123,7 +114,6 @@ CREATE TABLE IF NOT EXISTS travel_memories (
 
 CREATE INDEX IF NOT EXISTS idx_memories_user_id ON travel_memories(user_id);
 
--- ─── Refresh Tokens ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -132,10 +122,9 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user  ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
 
--- ─── Updated_at trigger ───────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
@@ -157,19 +146,23 @@ DO $$ BEGIN
 END $$;
 `;
 
-async function migrate() {
+export async function runMigrations(): Promise<void> {
   const client = await pool.connect();
   try {
-    console.log('[migrate] Running database migrations...');
+    console.log('[migrate] Running migrations...');
     await client.query(SQL);
-    console.log('[migrate] ✓ All tables created successfully');
+    console.log('[migrate] ✓ All tables ready');
   } catch (err) {
-    console.error('[migrate] ✗ Migration failed:', err);
-    process.exit(1);
+    console.error('[migrate] ✗ Failed:', (err as Error).message);
+    throw err;
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-migrate();
+// Run standalone when executed directly
+if (require.main === module) {
+  runMigrations()
+    .then(() => pool.end())
+    .catch(() => process.exit(1));
+}
