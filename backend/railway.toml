@@ -1,0 +1,12 @@
+# Railway backend service configuration
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/cluster.js"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
