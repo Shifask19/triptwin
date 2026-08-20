@@ -1,4 +1,7 @@
 # Railway backend service configuration
+# Healthcheck disabled — Railway checks process health instead
+# Set environment variables BEFORE first deploy:
+#   DATABASE_URL, REDIS_URL, JWT_SECRET, CORS_ORIGINS
 
 [build]
 builder = "dockerfile"
@@ -6,7 +9,5 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node dist/cluster.js"
-healthcheckPath = "/api/v1/health"
-healthcheckTimeout = 30
 restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
+restartPolicyMaxRetries = 5
