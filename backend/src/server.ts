@@ -2,52 +2,51 @@ import { createApp } from './app';
 import { config } from './config';
 import { pool } from './db/pool';
 import { getRedis } from './cache/redis';
-import { runMigrations } from './db/migrate';
-import { runSeed } from './db/seed';
 
-async function bootstrap() {
-  // Run migrations automatically on every startup
+async function setupDatabase() {
+  // Dynamic import to avoid issues when pg can't connect
+  const { runMigrations } = await import('./db/migrate');
+  const { runSeed } = await import('./db/seed');
+
   try {
     await runMigrations();
   } catch (err) {
-    console.error('[server] Migration failed — continuing anyway:', (err as Error).message);
+    console.error('[server] Migration error:', (err as Error).message);
+    // Don't crash — tables might already exist
   }
 
-  // Seed demo data only if no users exist yet
   try {
-    const { pool: p } = await import('./db/pool');
-    const res = await p.query('SELECT COUNT(*) FROM users');
+    const res = await pool.query('SELECT COUNT(*) as count FROM users');
     const count = parseInt((res.rows[0] as { count: string }).count, 10);
     if (count === 0) {
-      console.log('[server] No users found — running seed...');
+      console.log('[server] Empty database — seeding demo data...');
       await runSeed();
     } else {
-      console.log(`[server] Database has ${count} user(s) — skipping seed`);
+      console.log(`[server] ${count} user(s) in database — skipping seed`);
     }
   } catch (err) {
-    console.error('[server] Seed check failed:', (err as Error).message);
+    console.error('[server] Seed error (non-fatal):', (err as Error).message);
+  }
+}
+
+async function startServer() {
+  // Only run DB setup on the first worker or in standalone mode
+  const isFirstWorker = !process.env.CLUSTER_WORKER_ID || process.env.CLUSTER_WORKER_ID === '1';
+  if (isFirstWorker) {
+    await setupDatabase();
   }
 
   const app = createApp();
 
   const server = app.listen(config.port, () => {
-    console.log(`
-╔═══════════════════════════════════════════════╗
-║         TripTwin API Server                   ║
-╠═══════════════════════════════════════════════╣
-║  Port     : ${String(config.port).padEnd(10)}                    ║
-║  Env      : ${config.env.padEnd(10)}                    ║
-║  AI       : ${config.ai.provider.padEnd(10)}                    ║
-║  Prefix   : ${config.apiPrefix.padEnd(10)}                    ║
-╚═══════════════════════════════════════════════╝
-    `);
+    console.log(`[TripTwin] Server running on port ${config.port} | env=${config.env} | ai=${config.ai.provider}`);
   });
 
   async function shutdown(signal: string) {
-    console.log(`\n[server] ${signal} — shutting down...`);
+    console.log(`[server] ${signal} — shutting down gracefully`);
     server.close(async () => {
       try { await pool.end(); } catch { /* ignore */ }
-      try { const redis = getRedis(); await redis.quit(); } catch { /* ignore */ }
+      try { const r = getRedis(); await r.quit(); } catch { /* ignore */ }
       process.exit(0);
     });
     setTimeout(() => process.exit(1), 10_000);
@@ -55,16 +54,8 @@ async function bootstrap() {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT',  () => shutdown('SIGINT'));
-
-  process.on('unhandledRejection', (reason) => {
-    console.error('[server] Unhandled rejection:', reason);
-    if (config.isDev) process.exit(1);
-  });
-
-  process.on('uncaughtException', (err) => {
-    console.error('[server] Uncaught exception:', err);
-    process.exit(1);
-  });
+  process.on('unhandledRejection', (r) => console.error('[server] Unhandled rejection:', r));
+  process.on('uncaughtException',  (e) => { console.error('[server] Uncaught:', e); process.exit(1); });
 }
 
-bootstrap();
+startServer();
