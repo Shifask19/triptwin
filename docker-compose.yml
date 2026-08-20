@@ -1,0 +1,111 @@
+# ─── TripTwin Production Stack ────────────────────────────────────────────────
+name: triptwin
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: triptwin_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       triptwin
+      POSTGRES_USER:     triptwin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securepassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U triptwin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - triptwin_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: triptwin_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - triptwin_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: triptwin_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV:          production
+      PORT:              4000
+      API_PREFIX:        /api/v1
+      DATABASE_URL:      postgresql://triptwin:${POSTGRES_PASSWORD:-securepassword}@postgres:5432/triptwin
+      REDIS_URL:         redis://redis:6379
+      JWT_SECRET:        ${JWT_SECRET:-change_this_in_production}
+      JWT_EXPIRES_IN:    7d
+      CORS_ORIGINS:      ${CORS_ORIGINS:-http://localhost}
+      AI_PROVIDER:       ${AI_PROVIDER:-mock}
+      OPENAI_API_KEY:    ${OPENAI_API_KEY:-}
+      OPENAI_MODEL:      ${OPENAI_MODEL:-gpt-4o-mini}
+      GROQ_API_KEY:      ${GROQ_API_KEY:-}
+      GROQ_MODEL:        ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      RATE_LIMIT_MAX:    ${RATE_LIMIT_MAX:-200}
+      AI_RATE_LIMIT_MAX: ${AI_RATE_LIMIT_MAX:-30}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - triptwin_net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        VITE_API_URL: /api/v1
+    container_name: triptwin_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - triptwin_net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  triptwin_net:
+    driver: bridge

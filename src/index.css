@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --brand:     #6C47FF;
+  --brand-mid: #8B6FFF;
+  --brand-lt:  #EDE9FF;
+  --surface:   #0F0F14;
+  --surface-2: #17171F;
+  --surface-3: #1E1E2A;
+  --border:    rgba(255,255,255,0.07);
+  --text:      #E8E8F0;
+  --text-muted:#8888A4;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0A0A10;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ── Line clamp ──────────────────────────────────────────── */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Glass card ──────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(12px);
+}
+.glass-hover {
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+}
+.glass-hover:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(108,71,255,0.4);
+  box-shadow: 0 0 0 1px rgba(108,71,255,0.15), 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* ── Gradient text ───────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #A78BFA, #6C47FF, #38BDF8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Brand button glow ───────────────────────────────────── */
+.btn-brand {
+  background: linear-gradient(135deg, #7C5CFF, #6C47FF);
+  box-shadow: 0 4px 24px rgba(108,71,255,0.35);
+  transition: all 0.2s;
+}
+.btn-brand:hover {
+  box-shadow: 0 6px 32px rgba(108,71,255,0.5);
+  transform: translateY(-1px);
+}
+
+/* ── Sidebar glow ────────────────────────────────────────── */
+.nav-active {
+  background: linear-gradient(135deg, rgba(108,71,255,0.25), rgba(108,71,255,0.1));
+  border-right: 2px solid #6C47FF;
+  color: #A78BFA !important;
+}
+
+/* ── Score ring glow ─────────────────────────────────────── */
+.ring-glow-green  { filter: drop-shadow(0 0 6px rgba(16,185,129,0.5)); }
+.ring-glow-amber  { filter: drop-shadow(0 0 6px rgba(245,158,11,0.5)); }
+.ring-glow-purple { filter: drop-shadow(0 0 6px rgba(108,71,255,0.5)); }
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease both; }
+
+@keyframes pulse-soft {
+  0%,100% { opacity:1; }
+  50%      { opacity:0.6; }
+}
+.pulse-soft { animation: pulse-soft 2s ease infinite; }
+
+/* ── Input dark ──────────────────────────────────────────── */
+.input-dark {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.input-dark::placeholder { color: var(--text-muted); }
+.input-dark:focus {
+  outline: none;
+  border-color: rgba(108,71,255,0.6);
+  box-shadow: 0 0 0 3px rgba(108,71,255,0.15);
+}
+
+/* ── Progress bar dark ───────────────────────────────────── */
+.progress-track {
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  border-radius: 99px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Stat card accent line ───────────────────────────────── */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6C47FF, #38BDF8);
+  border-radius: 2px 2px 0 0;
+}
